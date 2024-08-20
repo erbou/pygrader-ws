@@ -3,7 +3,7 @@ import logging
 
 from flask import Flask
 
-def create_app(debug_config=None):
+def create_app(debug_config=None) -> Flask:
     app = Flask(__name__, instance_path=os.path.join(os.environ.get('PWD'),'instance'), instance_relative_config=True)
     app.config.from_mapping(
         SECRET_KEY='dev_secret_key',

@@ -58,26 +58,23 @@ def register(namespace, module, name):
             m.update(name.encode('utf-8'))
             m.update(data_encoded.encode('utf-8'))
             digest = m.hexdigest()
-            cr.execute('SELECT id FROM result WHERE digest=?', (digest,)) 
+
+            cr.execute('INSERT INTO result(digest,data) VALUES(?,?) ON CONFLICT DO UPDATE SET id=id RETURNING id,score', (digest,data)) 
             res = cr.fetchone()
-            if res:
-                (rid) = res
-                cr.execute('INSERT INTO submission(uid,qid,rid,data,digest) VALUES(?,?,?,?,?) ON CONFLICT DO UPDATE SET id=id RETURNING id,rid', (uid,qid,rid,data,digest))
-            else:
-                rid = None
+            (rid,score) = res
+
+            if score is None:
                 deserialized = pickle.loads(data)
                 ## TODO - validation, make sure it satisfies minimum conditions for scorer namespace.name
                 if False:
                     return Response('{}', status=400, mimetype='application/json')
-                cr.execute('INSERT INTO submission(uid,qid,data,digest) VALUES(?,?,?,?) ON CONFLICT DO UPDATE SET id=id RETURNING id,rid', (uid,qid,data,digest))
 
+            cr.execute('INSERT INTO submission(uid,qid,rid) VALUES(?,?,?) ON CONFLICT DO UPDATE SET id=id RETURNING id', (uid,qid,rid))
             res = cr.fetchone()
             if not res:
                 return Response('{}', status=500, mimetype='application/json')
+            (oid,) = res
 
-            (oid,rid) = res
-            if rid is None:
-               rid = 'null'
             db.commit()
             return Response(f'{{ "digest": "{digest}", "oid": {oid}, "rid": {rid} }}', status=200, mimetype='application/json')
     except Exception as e:
