@@ -1,4 +1,3 @@
-import functools
 import base64
 import json
 import dill as pickle
@@ -23,16 +22,17 @@ def register(namespace,module,name):
         current_app.logger.debug(body)
         data_encoded = body['data']
         nonce = body['nonce']
+        max_try = int(body['max_try'])
         public_key_id = body['public_key_id']
         signature_encoded = body['signature']
         data = base64.b64decode(data_encoded)
         signature = base64.b64decode(signature_encoded)
 
-        user_instance = db.session.query(models.User).filter_by(username=public_key_id).first()
+        user_instance = db.session.query(models.User).filter_by(email=public_key_id).first()
         if not user_instance:
-            raise RuntimeError(f'unknown public_key_id {public_key_id}')
+            raise RuntimeError(f'Unknown public_key_id {public_key_id}')
 
-        signed_message = f"{public_key_id}:{module}:{name}:{data_encoded}:{nonce}".encode()
+        signed_message = f"{public_key_id}:{module}:{name}:{data_encoded}:{max_try}:{nonce}".encode()
         public_key = serialization.load_pem_public_key(user_instance.public_key)
         public_key.verify(
                 signature,
@@ -40,14 +40,23 @@ def register(namespace,module,name):
                 ec.ECDSA(hashes.SHA256())
         )
 
+
         method_deserialized = pickle.loads(data)
         # TODO: validate method
 
-        question_instance = db.session.query(models.Question).filter_by(module=module, name=name).first()
+        module_instance = db.session.query(models.Module).filter_by(name=module).first()
+        if not module_instance:
+            raise RuntimeError(f'Unknown module {module}')
+
+        if not user_instance in module_instance.admin.users:
+            raise RuntimeError(f'Owner of {public_key_id} is not admin of module {module}')
+
+        question_instance = db.session.query(models.Question).filter_by(module_id=module_instance.id, name=name).first()
         if question_instance:
             question_instance.grader = data
+            question_instance.max_try = max_try
         else:
-            question_instance = models.Question(module=module, name=name, grader=data)
+            question_instance = models.Question(module=module_instance, name=name, grader=data, max_try=max_try)
             db.session.add(question_instance) 
 
         try:

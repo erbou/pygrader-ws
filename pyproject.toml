@@ -9,8 +9,9 @@ dependencies = [
     "ws",
     "uwsgi",
     "dill",
-    "celery",
     "cryptography",
+    "markupsafe",
+    "jwt",
     "flask-sqlalchemy"
 ]
 

@@ -1,4 +1,3 @@
-import functools
 import base64
 import json
 import dill as pickle
@@ -22,21 +21,18 @@ def register(namespace, module, name):
         body = request.get_json()
         current_app.logger.debug(body)
         public_key_id = body['public_key_id']
+        group_name = body['group_name']
         data_encoded = body['data']
         nonce = body['nonce']
-        group_name = body.get('nonce')
         signature_encoded = body['signature']
         data = base64.b64decode(data_encoded)
         signature = base64.b64decode(signature_encoded)
 
-        if group_name is None:
-            group_name = public_key_id
-
-        user_instance = db.session.query(models.User).filter_by(username=public_key_id).first()
-        if not user_instance:
+        user_instance = db.session.query(models.User).filter_by(email=public_key_id).first()
+        if user_instance is None:
             raise RuntimeError(f'unknown public_key_id {public_key_id}')
 
-        signed_message = f"{public_key_id}:{module}:{name}:{data_encoded}:{nonce}".encode()
+        signed_message = f"{public_key_id}:{module}:{name}:{group_name}:{data_encoded}:{nonce}".encode()
         public_key = serialization.load_pem_public_key(user_instance.public_key)
         public_key.verify(
             signature,
@@ -44,9 +40,17 @@ def register(namespace, module, name):
             ec.ECDSA(hashes.SHA256())
         )
 
-        question_instance = db.session.query(models.Question).filter_by(module=module, name=name).first()
-        if not question_instance:
+        module_instance = db.session.query(models.Module).filter_by(name=module).first()
+        if module_instance is None:
+            raise RuntimeError(f'Unknown module {module}')
+
+        question_instance = db.session.query(models.Question).filter_by(module_id=module_instance.id, name=name).first()
+        if question_instance is None:
            raise RuntimeError(f'Unknown ref {module}.{name}')
+
+        group_instance = db.session.query(models.Group).filter_by(name=group_name).first()
+        if group_instance is None:
+           raise RuntimeError(f'Unknown group {group_name}')
 
         m = hashlib.sha256()
         m.update(namespace.encode('utf-8'))
@@ -55,20 +59,26 @@ def register(namespace, module, name):
         digest = m.hexdigest()
 
         score_instance = db.session.query(models.Score).filter_by(digest=digest).first()
-        if not score_instance:
+        if score_instance is None:
             deserialized = pickle.loads(data)
-            if False: ## TODO - validation, make sure it satisfies minimum conditions for scorer namespace.name
+            if False: ## TODO - validation, make sure deserialized satisfies minimum conditions for scorer namespace.name
                 return Response('{}', status=400, mimetype='application/json')
-            score_instance = models.Score(digest=digest, data=data)
+            score_instance = models.Score(question_id=question_instance.id, digest=digest, data=data)
             db.session.add(score_instance)
             db.session.flush()
-
-        answer_instance = db.session.query(models.Answer).filter_by(user_id=user_instance.id, question_id=question_instance.id, score_id=score_instance.id).first()
-        if answer_instance:
-            answer_instance.group_name = group_name
+            answer_instance = None
         else:
-            answer_instance = models.Answer(user_id=user_instance.id, question_id=question_instance.id, score_id=score_instance.id, group_name=group_name)
+            answer_instance = db.session.query(models.Answer).filter_by(sender_id=user_instance.id, score_id=score_instance.id).first()
+
+        if answer_instance is None:
+            answer_instance = models.Answer(sender_id=user_instance.id, score_id=score_instance.id, group_id=group_instance.id)
+            answer_instance.score = score_instance
             db.session.add(answer_instance) 
+            current_app.logger.error(f'Answer => {answer_instance}\nScore => {score_instance}')
+            db.session.flush()
+        else:
+            if answer_instance.group_id != group_instance.id:
+                return Response('{{ "error": "you cannot answer a question under a different group" }}', status=403, mimetype='application/json')
 
         try:
             db.session.commit()

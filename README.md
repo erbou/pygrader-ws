@@ -4,10 +4,14 @@
 
 ## First steps
 
-* _flask --app ws init-db_, or
-* _flask --app ws reset-db_
-* edit ./instance/config.ini
+* Edit Flask's ./config.ini and uWSGI's ./wsgi.ini
+* _flask --app ws init-db_
 * _uswgi --ini wsgi.ini_
 * _uswgi --stop ./instance/pidfile.pid_
 
-Note that _init-db_ will not create existing tables, wherehas _reset-db_ will drop the tables first and recreate them.
+Note that _init-db_ will not create or modify existing tables.
+
+## References
+
+* Flask [configuration](https://flask.palletsprojects.com/en/3.0.x/config/)
+* uWSGI [configuration](https://uwsgi-docs.readthedocs.io/en/latest/Configuration.html)

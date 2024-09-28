@@ -1,4 +1,3 @@
-import functools
 import base64
 import json
 from cryptography.hazmat.primitives import serialization, hashes
@@ -15,7 +14,7 @@ from . import models
 from ws import db
 
 @bp.route('/<namespace>', methods=(['PUT']))
-def register(namespace):
+def insert_or_replace(namespace):
     try:
         if namespace != current_app.config.get('NAMESPACE'):
             raise RuntimeError(f'Invalid namespace "{namespace}"')
@@ -23,19 +22,19 @@ def register(namespace):
         body = request.get_json()
         current_app.logger.debug(body)
 
-        username = body['username']
         email = body['email']
+        username = body['username']
         key_encoded = body['public_key']
         nonce = body['nonce']
         signature_encoded = body['signature']
 
         public_key_bytes = base64.b64decode(key_encoded)
 
-        user_instance = db.session.query(models.User).filter_by(username=username).first()
+        user_instance = db.session.query(models.User).filter_by(email=email).first()
 
         if user_instance and public_key_bytes != user_instance.public_key:
-            if body['reset_token'] != user_instance.public_key:
-                raise RuntimeError(f'unauthorized public_key@{username} reset')
+            if body['reset_key'] != user_instance.public_key:
+                raise RuntimeError(f'unauthorized {email}:public_key reset')
 
         signed_message = f"{username}:{email}:{key_encoded}:{nonce}".encode()
         signature = base64.b64decode(signature_encoded)
@@ -48,10 +47,10 @@ def register(namespace):
 
         if user_instance:
             user_instance.public_key = public_key_bytes
-            user_instance.email = email
+            user_instance.username = username
         else:
             user_instance = models.User(username=username, public_key=public_key_bytes, email=email)
-            db.session.add(user_instance) 
+            db.session.add(user_instance)
 
         try:
             db.session.commit()
@@ -59,9 +58,10 @@ def register(namespace):
             db.session.rollback()
             raise e
 
-        return Response(f'{{ "oid": {user_instance.id}, "username": "{user_instance.username}" }}', status=200, mimetype='application/json')
+        return Response(f'{{ "oid": {user_instance.id} }}', status=201 if user_instance else 200, mimetype='application/json')
 
     except Exception as e:
         current_app.logger.error(f'{e}')
 
     return Response('{}', status=403, mimetype='application/json')
+
