@@ -1,0 +1,23 @@
+[ req ]                                                  # Request settings
+default_md          = sha256                             # Default message digest
+distinguished_name  = req_distinguished_name             # Default DN template
+string_mask         = utf8only                           # UTF-8 encoding
+x509_extensions     = v3_ca                              # Extensions to self signed cert
+prompt              = no                                 # Non-interactive mode
+
+[ req_distinguished_name ]                               # Template for the DN in the CSR
+C     = CH                                               # No prompt, all CA_.. must be set
+ST    = VD                                               # E.g.: export $(cat ca.env)
+L     = LAUSANNE    
+0.O   = EPFL        
+OU    = SDSC
+CN    = PyGrader-Intr
+
+[ v3_ca ]                                                # Root CA certificate extensions
+subjectKeyIdentifier = hash                              # Subject key identifier (sha-1)
+authorityKeyIdentifier = keyid:always,issuer             # Authority key identifier
+basicConstraints = critical, CA:true, pathlen:0          # Certs signed by CA cannot issue new certs
+keyUsage = critical, digitalSignature, cRLSign, keyCertSign
+
+[ crl_ext ]                                              # CRL extensions
+authorityKeyIdentifier = keyid:always,issuer             # Authority key identifier

@@ -1,0 +1,23 @@
+[ req ]
+distinguished_name = req_distinguished_name
+req_extensions = server_cert
+default_days      = 180
+prompt = no
+policy            = policy_client
+
+[ policy_anything ]
+countryName             = supplied
+stateOrProvinceName     = supplied
+localityName            = supplied
+organizationName        = supplied
+organizationalUnitName  = supplied
+commonName              = supplied
+emailAddress            = supplied
+
+[ server_client ]
+basicConstraints = CA:FALSE                            # Not a CA certificate
+subjectKeyIdentifier = hash                            # Subject key identifier
+nsCertType = client                                    # Server certificate type
+keyUsage = critical, digitalSignature, keyEncipherment # Key usage for a server cert
+extendedKeyUsage = clientAuth                          # Extended key usage for server authentication purposes (e.g., TLS/SSL servers).
+authorityKeyIdentifier = keyid:always,issuer:always    # Authority key identifier linking the certificate to the issuer's public key.

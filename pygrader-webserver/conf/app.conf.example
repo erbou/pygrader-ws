@@ -1,0 +1,41 @@
+[default]
+appname = pygrader-webserver
+runmode = mtlsdev
+autorender = false
+copyrequestbody = true
+EnableDocs = true
+
+# See ca-tools
+HTTPSCertFile = ./conf/serv.cert.pem
+HTTPSKeyFile = ./conf/serv.prvkey.pem
+TrustCaFile = ./conf/ca-chain.cert.pem
+
+[dev]
+httpport = 9080
+httpsport = 9443
+adminport = 9089
+adminaddr = 0.0.0.0
+enableadmin = true
+recoverpanic = false
+EnableHTTP = true
+sqlconn = pygrader:Replace.with.Pygrader.Password!Here@tcp(127.0.0.1:3306)/default?charset=utf8
+
+[mtlsdev]
+httpport = 9080
+httpsport = 9443
+adminport = 9089
+adminaddr = 0.0.0.0
+recoverpanic = true
+enableadmin = true
+EnableHTTP = true
+EnableMutualHTTPS = true
+sqlconn = pygrader:Replace.with.Pygrader.Password!Here@tcp(127.0.0.1:3306)/default?charset=utf8
+
+[prod]
+httpsport = 8443
+enableadmin = false
+recoverpanic = true
+EnableHTTP = false
+EnableMutualHTTPS = true
+sqlconn = pygrader:Replace.with.Pygrader.Password!Here@tcp(127.0.0.1:3306)/default?charset=utf8
+EnableHTTPS = false

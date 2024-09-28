@@ -1,0 +1,67 @@
+[ ca ]
+default_ca = ca_default
+
+[ ca_default ]                                           # Default settings for the CA
+dir               = ./ca/root/                           # CA dir
+new_certs_dir     = $dir/certs                           # New certificates dir
+certs             = $dir/certs                           # Certificates dir
+crl_dir           = $dir/crl                             # CRL dir
+new_certs_dir     = $dir/newcerts                        # New certificates dir
+database          = $dir/index.txt                       # Certificate index file
+serial            = $dir/serial                          # Serial number file
+private_key       = $dir/private/key.pem                 # CA private key
+certificate       = $dir/certs/ca.cert.pem               # CA certificate
+crl               = $dir/crl/ca.crl.pem                  # CA CRL
+crlnumber         = $dir/crlnumber                       # CA CRL number
+crl_extensions    = crl_ext                              # CRL extensions
+default_crl_days  = 30                                   # Default CRL validity days
+default_md        = sha256                               # Default message digest
+preserve          = no                                   # Preserve existing extensions
+email_in_dn       = no                                   # Exclude email from the DN
+name_opt          = ca_default                           # Formatting options for names
+cert_opt          = ca_default                           # Certificate output options
+policy            = policy_match                         # Certificate policy
+unique_subject    = no                                   # Allow non-unique DN
+
+[ policy_match ]                                         # Certificates policy settings
+countryName             = match                          # Must match the issuer's country
+stateOrProvinceName     = match                          # Must match the issuer's state
+organizationName        = match                          # Must match the issuer's organization
+commonName              = supplied                       # Must provide a common name
+emailAddress            = supplied                       # Must provide an email address
+localityName            = optional                       # Locality is optional
+organizationalUnitName  = optional                       # Organizational unit is optional
+
+[ req ]                                                  # Request settings
+default_md          = sha256                             # Default message digest
+default_bits        = 4096                               # Default key size
+default_keyfile     = $dir/private/key.pem               # Default req keyout (erase private_key if self-signed!!)
+input_password      = $dir/private/key.pass              # Input password if encrypted
+ouput_password      = $dir/private/key.pass              # Output password if encrypted
+encrypt_key         = no                                 # Do not encrypt the key
+distinguished_name  = req_distinguished_name             # Default DN template
+string_mask         = utf8only                           # UTF-8 encoding
+x509_extensions     = v3_ca                              # Extensions to self signed cert
+prompt              = no                                 # Non-interactive mode
+
+[ req_distinguished_name ]                               # Template for the DN in the CSR
+C     = ${ENV::CA_C}                                     # No prompt, all CA_.. must be set
+ST    = ${ENV::CA_ST}                                    # E.g.: export $(cat ca.env)
+L     = ${ENV::CA_L}
+0.O   = ${ENV::CA_O}
+OU    = ${ENV::CA_OU}
+
+[ v3_ca ]                                                # Root CA certificate extensions
+subjectKeyIdentifier = hash                              # Subject key identifier
+authorityKeyIdentifier = keyid:always,issuer             # Authority key identifier
+basicConstraints = critical, CA:true                     # CA can issue certificates
+keyUsage = critical, keyCertSign, cRLSign                # Key usage of CA
+
+[ v3_intermediate_ca ]                                   # Intermediate CA extensions
+subjectKeyIdentifier = hash                              # Subject key identifier (sha-1)
+authorityKeyIdentifier = keyid:always,issuer             # Authority key identifier
+basicConstraints = critical, CA:true, pathlen:0          # Certs signed by CA cannot issue new certs
+keyUsage = critical, digitalSignature, cRLSign, keyCertSign
+
+[ crl_ext ]                                              # CRL extensions
+authorityKeyIdentifier = keyid:always,issuer             # Authority key identifier

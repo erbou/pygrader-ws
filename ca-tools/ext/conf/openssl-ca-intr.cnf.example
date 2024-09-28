@@ -1,0 +1,74 @@
+[ ca ]
+default_ca = ca_default
+
+[ ca_default ]                                           # Default settings for the CA
+dir               = ./ca/intr/                           # CA dir
+certs             = $dir/certs                           # Certificates dir
+crl_dir           = $dir/crl                             # CRL dir
+new_certs_dir     = $dir/newcerts                        # New certificates dir
+database          = $dir/index.txt                       # Certificate index file
+serial            = $dir/serial                          # Serial number file
+private_key       = $dir/private/key.pem                 # CA private key
+certificate       = $dir/certs/ca.cert.pem               # CA certificate
+crl               = $dir/crl/ca.crl.pem                  # CA CRL
+crlnumber         = $dir/crlnumber                       # CA CRL number
+crl_extensions    = crl_ext                              # CRL extensions
+default_days      = 365                                  # Default cert validity days
+default_md        = sha256                               # Default message digest
+preserve          = no                                   # Preserve existing extensions
+email_in_dn       = no                                   # Exclude email from the DN
+name_opt          = ca_default                           # Formatting options for names
+cert_opt          = ca_default                           # Certificate output options
+policy            = policy_anything                      # Certificate policy
+
+[ policy_anything ]                                      # Policy for intermediate CA
+countryName             = optional                       # Country is optional
+stateOrProvinceName     = optional                       # State or province is optional
+organizationName        = optional                       # Organizational unit is optional
+commonName              = supplied                       # Must provide a common name
+emailAddress            = supplied                       # Must provide an email address
+localityName            = optional                       # Locality is optional
+organizationalUnitName  = optional                       # Organizational unit is optional
+
+[ req ]                                                  # Request settings
+default_md          = sha256                             # Default message digest
+default_bits        = 2048                               # Default key size
+distinguished_name  = req_distinguished_name             # Default DN template
+string_mask         = utf8only                           # UTF-8 encoding
+x509_extensions     = v3_intermediate_ca                 # Extensions for intermediate CA certificate
+attributes          = req_attributes                     # Attributes
+
+[ req_attributes ]
+customAttribute     = Sciper                             # Additional req attributes
+
+[ req_distinguished_name ]                               # Template for the DN in the CSR
+countryName                     = Country Name (2 letter code)
+countryName_min                 = 2
+countryName_max                 = 2
+countryName_default             = CH
+stateOrProvinceName             = State
+stateOrProvinceName_default     = VD
+localityName                    = City
+0.organizationName              = Organization name
+commonName                      = The common name
+commonName_max                  = 64
+emailAddress                    = Email address
+emailAddress_max                = 64
+
+[ v3_intermediate_ca ]                                   # Intermediate CA certificate extensions
+subjectKeyIdentifier = hash                              # Subject key identifier
+authorityKeyIdentifier = keyid:always,issuer             # Authority key identifier
+basicConstraints = critical, CA:true, pathlen:0          # CA's certs cannot issue certificates
+keyUsage = critical, keyCertSign, cRLSign, digitalSignature # Key usage for a CA
+
+[ crl_ext ]                                              # CRL extensions
+authorityKeyIdentifier = keyid:always                    # Authority key identifier
+
+[ server_cert ]                                          # Server certificate extensions
+nsComment = "description"
+subjectKeyIdentifier = hash                              # Subject key identifier
+basicConstraints = CA:FALSE                              # Not a CA certificate
+nsCertType = server                                      # Server certificate type
+keyUsage = critical, digitalSignature, keyEncipherment   # Key usage for a server cert
+extendedKeyUsage = serverAuth                            # Extended key usage for server authentication purposes (e.g., TLS/SSL servers).
+authorityKeyIdentifier = keyid,issuer                    # Authority key identifier linking the certificate to the issuer's public key.

@@ -1,14 +1,11 @@
 [project]
-name = "ws"
+name = "pygrader-client"
 version = "1.0.0"
 authors = [ { name = "Swiss Data Science Center", email="eric.bouillet@epfl.ch" }, ]
 description = "Online python grader system"
 readme = "README.md"
 requires-python = ">= 3.12"
 dependencies = [
-    "ws",
-    "uwsgi",
-    "dill",
     "cryptography"
 ]
 

@@ -1,0 +1,53 @@
+name: pygrader
+
+services:
+  mysql:
+    env_file:
+      - path: mysql.env
+        required: true
+    image: ${MYSQL_IMAGE-container-registry.oracle.com/mysql/community-server:9.0}
+    networks:
+      - pygrader
+    deploy:
+      mode: replicated
+      replicas: 1
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: "4g"
+      restart_policy:
+        condition: on-failure
+    environment:
+      # https://dev.mysql.com/doc/refman/8.4/en/docker-mysql-more-topics.html#docker-environment-variables
+      MYSQL_DATABASE: "metastore"
+      MYSQL_LOG_CONSOLE: "true"
+      MYSQL_ROOT_HOST: "%"
+      MYSQL_ONETIME_PASSWORD:
+      MYSQL_RANDOM_ROOT_PASSWORD:
+      MYSQL_ALLOW_EMPTY_PASSWORD:
+    healthcheck:
+      test: ["CMD", "mysqladmin" ,"ping", "-h", "localhost", "-p$${MYSQL_ROOT_PASSWORD-error}" ]
+      start_period: 5s
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    expose:
+      - '3306'
+    volumes:
+      - mysql-db:/var/lib/mysql
+    dns:
+      - 8.8.8.8
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  pygrader:
+    external: false
+    attachable: true
+    driver: bridge
+
+volumes:
+  mysql-db:

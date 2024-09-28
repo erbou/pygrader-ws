@@ -1,0 +1,22 @@
+[ req ]
+distinguished_name = req_distinguished_name
+req_extensions = req_ext
+prompt = no
+
+[ req_distinguished_name ]
+C = CH
+ST = VD
+L = Lausanne
+O = EPFL
+OU = MyOrgUnit
+CN = 127.0.0.1
+emailAddress=admin@acme.org
+
+[ req_ext ]
+subjectAltName = @alt_names
+keyUsage = critical, digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth
+
+[ alt_names ]
+IP.1 = 0.0.0.0
+DNS.1 = localhost
