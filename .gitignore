@@ -164,3 +164,4 @@ cython_debug/
 *.pem
 pygrader-webserver
 main
+*.env

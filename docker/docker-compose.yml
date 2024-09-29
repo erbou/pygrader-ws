@@ -19,7 +19,7 @@ services:
         condition: on-failure
     environment:
       # https://dev.mysql.com/doc/refman/8.4/en/docker-mysql-more-topics.html#docker-environment-variables
-      MYSQL_DATABASE: "metastore"
+      MYSQL_DATABASE: "default"
       MYSQL_LOG_CONSOLE: "true"
       MYSQL_ROOT_HOST: "%"
       MYSQL_ONETIME_PASSWORD:
@@ -31,6 +31,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    ports:
+      - name: "mysql"
+        target: 3306
+        published: "3306"
+        protocol: tcp
     expose:
       - '3306'
     volumes:
