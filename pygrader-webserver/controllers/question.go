@@ -5,7 +5,6 @@ import (
 	"strconv"
 
 	beego "github.com/beego/beego/v2/server/web"
-	"github.com/beego/beego/v2/core/logs"
 )
 
 type QuestionController struct {
@@ -89,7 +88,6 @@ func (c *QuestionController) PostAnswer(qid int64) {
 			CustomAbort(c, err, 400, "Bad Request")
 		} else {
 			c.SetData(obj.View())
-			logs.Error("ANSWER %v", obj)
 		}
 	}
 	c.ServeJSON()

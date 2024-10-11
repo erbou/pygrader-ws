@@ -120,7 +120,7 @@ func GetModules(name *string, page int, pageSize int) (*[]*ModulePreview, error)
 	o := orm.NewOrm()
 	qs := o.QueryTable("module")
 
-	if _, err := qs.Limit(pageSize, (page-1)*pageSize).All(&list, "Id", "Name"); err != nil {
+	if _, err := qs.Limit(pageSize, (page-1)*pageSize).All(&list, "Id", "Name", "Before", "Reveal"); err != nil {
 		return nil, err
 	}
 

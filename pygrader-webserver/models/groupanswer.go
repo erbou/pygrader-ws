@@ -28,7 +28,13 @@ type GroupAnswerInput struct {
 	Poster   *User
 }
 
+type GroupAnswerPreview struct {
+	Id       int64
+	NumTry   int
+}
+
 type GroupAnswerView struct {
+	Id       int64
 	Group    *GroupPreview
 	Poster   *UserPreview
 	Answer   *AnswerView
@@ -37,30 +43,44 @@ type GroupAnswerView struct {
 	Updated  time.Time
 }
 
-func (ug *GroupAnswer) TableName() string {
+func (obj *GroupAnswer) TableName() string {
 	return "m2m_group_answer"
 }
 
-func (ug *GroupAnswer) TableUnique() [][]string {
+func (obj *GroupAnswer) TableUnique() [][]string {
 	return [][]string{
 		{"Poster", "Answer"},
 	}
 }
 
-func (ug *GroupAnswer) TableIndex() [][]string {
+func (obj *GroupAnswer) TableIndex() [][]string {
 	return [][]string{
 		{"Group", "Answer"},
 	}
 }
 
-func (ug *GroupAnswer) View() *GroupAnswerView {
+func (obj *GroupAnswer) Preview() *GroupAnswerPreview {
+	return &GroupAnswerPreview{
+		Id: obj.Id,
+		NumTry: obj.NumTry,
+	}
+}
+
+func (obj *GroupAnswer) View() interface{} {
+	if obj == nil {
+		return nil
+	}
+	if obj.Answer.Digest == "" {
+		return obj.Preview()
+	}
 	return &GroupAnswerView{
-		Group: ug.Group.Preview(),
-		Poster: ug.Poster.Preview(),
-		Answer: ug.Answer.View(),
-		NumTry: ug.NumTry,
-		Created: ug.Created,
-		Updated: ug.Updated,
+		Id: obj.Id,
+		Group: obj.Group.Preview(),
+		Poster: obj.Poster.Preview(),
+		Answer: obj.Answer.View(),
+		NumTry: obj.NumTry,
+		Created: obj.Created,
+		Updated: obj.Updated,
 	}
 }
 
@@ -117,7 +137,7 @@ func AddGroupAnswer(g *GroupAnswer) (*GroupAnswer, error) {
 		}
 	} else {
 		// This is a group answer
-		// TODO: group must be a subgroup of audience
+		// TODO: group must be a subgroup of audience and user must be a member of group
 		if err := o.QueryTable("m2m_group_answer").Filter("Group__Id", g.Group.Id).Filter("Answer__Id", g.Answer.Id).One(g); err == nil {
 			return g, nil
 		}
@@ -127,6 +147,10 @@ func AddGroupAnswer(g *GroupAnswer) (*GroupAnswer, error) {
 			num_try = n 
 		}
 	}
+
+	// Num try is maximum number of tries between the user or for the group
+	// This does not count the total number of combined attempts from all users of the same group
+	// Allow one distinct group only per person per question (or per module) ?
 	if n, err := o.QueryTable("m2m_group_answer").Filter("Poster__Id", g.Poster.Id).Filter("Answer__Question__Id", g.Answer.Question.Id).Count(); err != nil {
 		return nil, uti.Errorf(uti.ERR_SYSTEM_ERROR, "Try Again")
 	} else if n > num_try {

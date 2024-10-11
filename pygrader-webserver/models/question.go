@@ -80,6 +80,9 @@ func (obj *Question) Preview() *QuestionPreview {
 }
 
 func (obj *Question) View() *QuestionView {
+	if obj == nil {
+		return nil
+	}
 	return &QuestionView{
 		Id:       obj.Id,
 		Name:     obj.Name,

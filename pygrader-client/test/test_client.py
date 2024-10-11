@@ -203,7 +203,7 @@ try:
     Result(s, m, data)
     s, m, data = conn.answer_question(questionId, groupId2, pickle.dumps({ "TEST": 2 }))
     Result(s, m, data)
-    s, m, data = conn.answer_question(questionId, groupId2, pickle.dumps({ "TEST": 3 }))
+    s, m, data = conn.answer_question(questionId, groupId, pickle.dumps({ "TEST": 3 }))
     Result(s, m, data)
 except Exception as e:
     print(f'Failed {e}')
