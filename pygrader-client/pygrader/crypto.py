@@ -136,7 +136,6 @@ class Signer():
         digest_msg = hashes.Hash(hashes.SHA256(), backend=default_backend())
         nonce = f'{time.time():.0f}'
         message = ':'.join([ str(s) for s in params ] + [nonce, obj.hashObject()])
-        #print(message)
         digest_msg.update(message.encode())
         digest = digest_msg.finalize()
 
@@ -162,7 +161,6 @@ class Signer():
             json_body['Signature']['digest'] = digest.hex()
         
         # Convert the dictionary to a JSON string
-        print(json_body)
         json_data = json.dumps(json_body, cls=DateTimeEncoder)
         return json_data
 

@@ -20,33 +20,34 @@ func (c *UserController) GetController() *beego.Controller {
 
 // @Title CreateUser
 // @Description create users
-// @Param	body		body 	models.User	true		"user object"
-// @Success 200 {int64} models.User.Id
-// @Failure 400 body is invalid
+// @Param	body		body 	models.UserInput	true		"user object"
+// @Success 200 {object} models.UserView
+// @Failure 400 bad request
+// @Failure 403 forbidden
 // @router / [post]
 func (c *UserController) Post() {
 	u, s, err := models.Verify[models.User](c.Ctx.Input.RequestBody)
 	if err != nil {
-		// TODO: address bootstraping issue if kid does not exist yet.
-		//       current approach is to allow it if the new user's email and the key fingerprint matches the
-		//       certificate's CN and signature's key. This requires doing a user pre-validation to obain
-		//       the Kid. None of this is very clean.
+		// TODO: Improve bootstraping if kid does not exist yet.
+		//       Current approach is to allow it if the new user's email u.Email and the key fingerprint u.Kid matches the
+		//       certificate's CN and signature's key s.Keyid. This requires doing a user Verify pre-validation to obtain
+		//       the Kid.
 		if _err, ok := err.(uti.Error); !ok {
 			CustomAbort(c, err, 500, "System error")
 		} else if _err.Code == models.ERR_KID_UNKOWN &&
 			u.Validate() == nil &&
 			s.Keyid == u.Kid &&
 			c.Ctx.Request.Header.Get("X-Client-Cert-CN") == u.Email {
-			logs.Warning("Create user %v %v %v", c.Ctx.Request.Header.Get("X-Client-Cert-CN"), u.CEmail, u.Kid)
+			logs.Info("Create user %v %v %v", c.Ctx.Request.Header.Get("X-Client-Cert-CN"), u.CEmail, u.Kid)
 		} else {
 			CustomAbort(c, err, 403, "Forbidden")
 		}
 	}
 
 	if u, err := models.AddUser(u); err != nil {
-		CustomAbort(c, err, 400, "Failed")
+		CustomAbort(c, err, 400, "Bad request")
 	} else {
-		c.SetData(u)
+		c.SetData(u.View())
 	}
 	c.ServeJSON()
 }
@@ -56,10 +57,23 @@ func (c *UserController) Post() {
 // @Param	email		query 	string	false		"filter by email"
 // @Param	username		query 	string	false		"filter by username"
 // @Param	kid		query 	string	false		"filter by key fingerprint"
-// @Success 200 {object} models.User
+// @Param	page		query 	int	false		"pagination start"
+// @Param	pageSize		query 	int	false		"pagination size"
+// @Success 200 {object} []models.UserPreview
+// @Failure 400 bad request
+// @Failure 403 forbidden
+// @Failure 500 internal error
 // @router / [get]
-func (c *UserController) GetUsers(email *string, username *string, kid *string) {
-	if list, err := models.GetUsers(email, username, kid); err != nil {
+func (c *UserController) GetUsers(email *string, username *string, kid *string, page *int, pageSize *int) {
+	_page := 1
+	_pageSize := 100
+	if pageSize != nil && *pageSize < 100 {
+		_pageSize = *pageSize
+	}
+	if page != nil && *page > 0 {
+		_page = *page
+	}
+	if list, err := models.GetUsers(email, username, kid, _page, _pageSize); err != nil {
 		CustomAbort(c, err, 500, "Error")
 	} else {
 		c.SetData(list)
@@ -67,27 +81,29 @@ func (c *UserController) GetUsers(email *string, username *string, kid *string) 
 	c.ServeJSON()
 }
 
-// @Title Get
+// @Title Get User
 // @Description get user by uid
 // @Param	uid		path 	int64	true		"The user id you want to get"
-// @Success 200 {object} models.User
-// @Failure 400 uid is not int64
+// @Success 200 {object} models.UserView
+// @Failure 400 bad request
+// @Failure 404 not found
 // @router /:uid:int [get]
 func (c *UserController) GetUser(uid int64) {
 	if u, err := models.GetUser(uid); err == nil {
-		c.SetData(u)
+		c.SetData(u.View())
 	} else {
 		CustomAbort(c, err, 404, "Not Found")
 	}
 	c.ServeJSON()
 }
 
-// @Title Update
+// @Title Update User
 // @Description update the user
 // @Param	uid		path 	int64	true		"The uid you want to update"
 // @Param	body		body 	models.User	true		"user object"
 // @Success 200 {object} models.User
-// @Failure 403 :uid is not int64
+// @Failure 400 bad request
+// @Failure 403 forbidden
 // @router /:uid:int [put]
 func (c *UserController) PutUser(uid int64) {
 	if u, s, err := models.Verify[models.User](c.Ctx.Input.RequestBody, uid); err != nil {
@@ -95,9 +111,9 @@ func (c *UserController) PutUser(uid int64) {
 	} else if uid != s.Issuer.Id {
 		CustomAbort(c, err, 403, "Forbidden")
 	} else if u, err := models.UpdateUser(uid, u); err != nil {
-		CustomAbort(c, err, 400, "Failed")
+		CustomAbort(c, err, 400, "Bad request")
 	} else {
-		c.SetData(u)
+		c.SetData(u.View())
 	}
 	c.ServeJSON()
 }
@@ -106,9 +122,10 @@ func (c *UserController) PutUser(uid int64) {
 // @Description delete the user
 // @Param	uid		path 	int64	true		"The uid you want to delete"
 // @Success 200 {string} delete success!
-// @Failure 400 uid is not int64
+// @Failure 400 bad request
 // @router /:uid:int [delete]
 func (c *UserController) DeleteUser(uid int64) {
+	// TODO: Only admin can delete a user
 	if n, err := models.DeleteUser(uid); err != nil {
 		CustomAbort(c, err, 400, "Bad Request")
 	} else {
@@ -121,7 +138,7 @@ func (c *UserController) DeleteUser(uid int64) {
 // @Description get all groups that user belongs to
 // @Param	uid		path 	int64	true		"The user id you want to inspect"
 // @Success 200 {object} []models.Group
-// @Failure 400 invalid uid
+// @Failure 400 bad request
 // @Failure 404 uid does not exist
 // @router /:uid:int/group/ [get]
 func (c *UserController) GetGroups(uid int64) {

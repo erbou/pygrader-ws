@@ -23,11 +23,11 @@ import (
 const (
 	ERR_KID_INVALID uti.ErrorCode = 2001 + iota
 	ERR_KID_UNKOWN
-	ERR_KEY_INVALID
-	ERR_ECDSA_INVALID
-	ERR_ECDSA_FAILED
 	ERR_NO_BODY
 	ERR_INVALID_INPUT
+	ERR_DEADLINE
+	ERR_MAX_TRY
+	ERR_NOT_FOUND
 )
 
 type Signature struct {
@@ -42,17 +42,13 @@ type SignedBody struct {
 	Payload   json.RawMessage `json:"payload"`
 }
 
-type Verifiable interface {
-	Validate() error
-}
-
 var GlCache cache.Cache
 
 func init() {
 	var err error
 	GlCache, err = cache.NewReadThroughCache(
 		cache.NewRandomExpireCache(cache.NewMemoryCache()),
-		time.Minute, // expiration
+		5*time.Minute, // expiration
 		// load data from database if the key is absent.
 		func(ctx context.Context, key string) (any, error) {
 			o := orm.NewOrm()
@@ -60,7 +56,7 @@ func init() {
 			if err := o.RawWithCtx(ctx, "SELECT * FROM user WHERE kid = ?", key).QueryRow(&u); err != nil {
 				return nil, err
 			}
-			logs.Debug("Cache KID %v", key)
+			//logs.Debug("Cache KID %v", key)
 			return &u, nil
 		})
 	if err != nil {
@@ -106,6 +102,7 @@ func Verify[E interface{}](data []byte, params ...interface{}) (*E, *Signature, 
 		}
 	}
 	if e, s, err := Unmarshal[E](data, false, e); err != nil {
+		logs.Warning("%v", "Parsing error")
 		return e, nil, err
 	} else {
 		if _u, err := GlCache.Get(context.Background(), s.Keyid); err != nil {
@@ -115,13 +112,13 @@ func Verify[E interface{}](data []byte, params ...interface{}) (*E, *Signature, 
 		} else if s.Issuer = u; e == nil {
 			return e, s, nil
 		} else if ecdsa_sign, err := base64.StdEncoding.DecodeString(s.Ecdsa); err != nil {
-			return e, s, uti.Errorf(ERR_ECDSA_INVALID, "Cannot decode signature, %w", err)
+			return e, s, uti.Errorf(uti.ERR_INVALID_ECDSA, "Cannot decode signature, %w", err)
 		} else if keyDer, err := base64.StdEncoding.DecodeString(u.Key); err != nil {
-			return e, s, uti.Errorf(ERR_KEY_INVALID, "Cannot decode public key kid %v, %w", s.Keyid, err)
+			return e, s, uti.Errorf(uti.ERR_INVALID_KEY, "Cannot decode public key kid %v, %w", s.Keyid, err)
 		} else if key, err := x509.ParsePKIXPublicKey(keyDer); err != nil {
-			return e, s, uti.Errorf(ERR_KEY_INVALID, "Cannot deserialize public key %v, %w", s.Keyid, err)
+			return e, s, uti.Errorf(uti.ERR_INVALID_KEY, "Cannot deserialize public key %v, %w", s.Keyid, err)
 		} else if pubKey, ok := key.(*ecdsa.PublicKey); !ok {
-			return e, s, uti.Errorf(ERR_KEY_INVALID, "Key %v, Unsupported algorithm", s.Keyid)
+			return e, s, uti.Errorf(uti.ERR_INVALID_KEY_TYPE, "Key %v, Unsupported algorithm", s.Keyid)
 		} else {
 			h := strings.Join(append(_params, s.Nonce, uti.HexDigest(e)), ":")
 			hash := sha256.Sum256([]byte(h))
@@ -129,7 +126,7 @@ func Verify[E interface{}](data []byte, params ...interface{}) (*E, *Signature, 
 			if ecdsa.VerifyASN1(pubKey, hash[:], ecdsa_sign) {
 				return e, s, nil
 			} else {
-				return e, s, uti.Errorf(ERR_ECDSA_FAILED, "Verification failed with key %s", s.Keyid)
+				return e, s, uti.Errorf(uti.ERR_FAILED_ECDSA, "Verification failed with key %s", s.Keyid)
 			}
 		}
 	}

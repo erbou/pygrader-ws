@@ -9,17 +9,73 @@ import (
 	orm "github.com/beego/beego/v2/client/orm"
 )
 
+func init() {
+	orm.RegisterModel(new(Module))
+}
+
 type Module struct {
 	Id        int64
-	Name      string      `orm:"unique" hash:"n"`
+	Name      string      `orm:"unique"`
 	CName     string      `orm:"unique;size(32)"`
+	Before   *time.Time   `orm:"type(datetime);null"`
+	Reveal   *time.Time   `orm:"type(datetime);null"`
+	Audience  *Group      `orm:"rel(fk);null;on_delete(set_null)"`
 	Questions []*Question `orm:"reverse(many)"`
 	Created   time.Time   `orm:"auto_now_add;type(datetime)"`
 	Updated   time.Time   `orm:"auto_now;type(datetime)"`
 }
 
-func init() {
-	orm.RegisterModel(new(Module))
+type ModuleInput struct {
+	Name      string      `hash:"n"`
+	Audience  int64       `hash:"a"`
+	Before   *time.Time   `hash:"b"`
+	Reveal   *time.Time   `hash:"r"`
+}
+
+type ModulePreview struct {
+	Id        int64
+	Name      string
+	Before   *time.Time
+}
+
+type ModuleView struct {
+	Id        int64
+	Name      string
+	Audience *GroupPreview
+	Before   *time.Time
+	Reveal   *time.Time
+	Created   time.Time
+	Updated   time.Time
+}
+
+func (obj *ModuleInput) MapInput() (*Module, error) {
+	if audience, err := GetGroup(obj.Audience); err != nil {
+		return nil, err
+	} else {
+		return &Module{Name: obj.Name, Before: obj.Before, Reveal: obj.Reveal, Audience: audience}, nil
+	}
+}
+
+func (obj *Module) Preview() *ModulePreview {
+	if obj == nil {
+		return nil
+	}
+	return &ModulePreview{Id: obj.Id, Name: obj.Name, Before: obj.Before}
+}
+
+func (obj *Module) View() *ModuleView {
+	if obj == nil {
+		return nil
+	}
+	return &ModuleView{
+		Id: obj.Id,
+		Name: obj.Name,
+		Audience: obj.Audience.Preview(),
+		Before: obj.Before,
+		Reveal: obj.Reveal,
+		Created: obj.Created,
+		Updated: obj.Updated,
+	}
 }
 
 func (obj *Module) Validate() error {
@@ -29,6 +85,8 @@ func (obj *Module) Validate() error {
 		return uti.Errorf(ERR_INVALID_INPUT, "Invalid input")
 	} else if cname, err := uti.CanonizeName(obj.Name); err != nil {
 		return err
+	} else if obj.Reveal == nil || obj.Before == nil || obj.Reveal.Before(*obj.Before) || time.Now().After(*obj.Before) {
+		return uti.Errorf(ERR_INVALID_INPUT, "Invalid input")
 	} else {
 		obj.CName = cname
 	}
@@ -57,15 +115,21 @@ func GetModule(oid int64) (*Module, error) {
 	}
 }
 
-func GetAllModules() (*[]*Module, error) {
+func GetModules(name *string, page int, pageSize int) (*[]*ModulePreview, error) {
 	var list []*Module
 	o := orm.NewOrm()
 	qs := o.QueryTable("module")
-	if _, err := qs.All(&list); err == nil {
-		return &list, nil
-	} else {
+
+	if _, err := qs.Limit(pageSize, (page-1)*pageSize).All(&list, "Id", "Name"); err != nil {
 		return nil, err
 	}
+
+	modules := make([]*ModulePreview, 0, len(list))
+	for _, m := range list {
+		modules = append(modules, m.Preview())
+	}
+
+	return &modules, nil
 }
 
 func UpdateModule(oid int64, obj *Module) (*Module, error) {
@@ -77,6 +141,9 @@ func UpdateModule(oid int64, obj *Module) (*Module, error) {
 	if err := o.Read(&dbObj); err == nil {
 		if obj.Name != "" {
 			dbObj.Name = obj.Name
+		}
+		if obj.Audience != nil {
+			dbObj.Audience = obj.Audience
 		}
 		if err := dbObj.Validate(); err != nil {
 			return nil, err

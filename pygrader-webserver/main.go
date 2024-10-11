@@ -25,6 +25,8 @@ func main() {
 
 	force := false
 	verbose := false
+	beego.BConfig.EnableGzip = true
+
 	if matched, _ := regexp.MatchString("(?i).*dev.*", beego.BConfig.RunMode); matched {
 		verbose = true
 		force = true
@@ -34,6 +36,9 @@ func main() {
 		beego.BConfig.WebConfig.DirectoryIndex = true
 		beego.BConfig.WebConfig.StaticDir["/swagger"] = "swagger"
 	} else {
+		orm.Debug = false
+		logs.Reset()
+		logs.SetLogger(logs.AdapterFile, `{"level":4, "filename": "pygrader.log", "perm": "0700" }`)
 		logs.Async(1e3)
 	}
 

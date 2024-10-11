@@ -23,14 +23,17 @@ import (
 type KeyEncoding int
 
 const (
-	KeyB64Der KeyEncoding = 1
-	KeyPEM    KeyEncoding = 2
-	KeyCert   KeyEncoding = 4
-	KeyAll    KeyEncoding = 0xff
+	KeyB64Der KeyEncoding = 1<<iota
+	KeyPEM
+	KeyCert
+	KeyAny = KeyB64Der|KeyPEM|KeyCert
 )
 
 const (
 	ERR_INVALID_KEY_TYPE ErrorCode = 1001 + iota
+	ERR_INVALID_KEY
+	ERR_INVALID_ECDSA
+	ERR_FAILED_ECDSA
 )
 
 func CryptoDecodeKey(key string, enc KeyEncoding) ([]byte, error) {
@@ -74,12 +77,25 @@ func CryptoDecodeKey(key string, enc KeyEncoding) ([]byte, error) {
 	return nil, fmt.Errorf("invalid Key")
 }
 
-func CryptoVerifySignature(msg []byte, digest []byte, key string, enc KeyEncoding) (bool, error) {
-	return true, nil
+func CryptoVerifySignature(msg []byte, ecdsa_sign []byte, key string, allowEncoding KeyEncoding) (bool, error) {
+	if keyDer, err := CryptoDecodeKey(key, allowEncoding); err == nil {
+		return false, err
+	} else if key, err := x509.ParsePKIXPublicKey(keyDer); err != nil {
+		return false, Errorf(ERR_INVALID_KEY_TYPE, "Cannot deserialize public key: %v", err)
+	} else if pubKey, ok := key.(*ecdsa.PublicKey); !ok {
+		return false, Errorf(ERR_INVALID_KEY_TYPE, "Unsupported signing algorithm")
+	} else {
+		hash := sha256.Sum256(msg)
+		if ecdsa.VerifyASN1(pubKey, hash[:], ecdsa_sign) {
+			return true, nil
+		} else {
+			return false, Errorf(ERR_FAILED_ECDSA, "Verification failed")
+		}
+	}
 }
 
-func CryptoGetKeyFingerprint(key string, enc KeyEncoding, maxlen int) (string, []byte, error) {
-	if derBytes, err := CryptoDecodeKey(key, KeyB64Der|KeyPEM|KeyCert); err == nil {
+func CryptoGetKeyFingerprint(key string, allowEncoding KeyEncoding, maxlen int) (string, []byte, error) {
+	if derBytes, err := CryptoDecodeKey(key, allowEncoding); err == nil {
 		hash := sha256.Sum256(derBytes)
 		return string([]rune(hex.EncodeToString(hash[:]))[0:maxlen]), derBytes, nil
 	} else {
@@ -156,13 +172,14 @@ func HashStruct(data interface{}) []byte {
 
 func HexDigest(obj interface{}, params ...any) string {
 	v := reflect.ValueOf(obj)
-	t := reflect.TypeOf(obj)
+	//t := reflect.TypeOf(obj)
 
 	for v.Kind() == reflect.Ptr {
 		v = v.Elem()
-		t = t.Elem()
+		//t = t.Elem()
 	}
 
-	hash := HashStruct(v.Interface())
+	//hash := HashStruct(v.Interface())
+	hash := hashField(v)
 	return string([]rune(hex.EncodeToString(hash[:]))[:])
 }

@@ -7,9 +7,9 @@ import (
 )
 
 type UserGroup struct {
-	Id      int64  `orm:"pk;auto"`
-	User    *User  `orm:"rel(fk)"`
-	Group   *Group `orm:"rel(fk)"`
+	Id      int64     `orm:"pk;auto"`
+	User    *User     `orm:"rel(fk);null;on_delete(set_null)"`
+	Group   *Group    `orm:"rel(fk);null;on_delete(set_null)"`
 	GrpAcl  string
 	Created time.Time `orm:"auto_now_add;type(datetime)"`
 	Updated time.Time `orm:"auto_now;type(datetime)"`
@@ -19,13 +19,13 @@ func init() {
 	orm.RegisterModel(new(UserGroup))
 }
 
-func (ug *UserGroup) TableUnique() [][]string {
+func (obj *UserGroup) TableUnique() [][]string {
 	return [][]string{
 		{"User", "Group"},
 	}
 }
 
-func (ug *UserGroup) TableName() string {
+func (obj *UserGroup) TableName() string {
 	return "m2m_user_group"
 }
 
@@ -38,6 +38,10 @@ func AddUserGroup(u *User, g *Group, acl string) (*UserGroup, error) {
 		Created: time.Now().UTC(),
 		Updated: time.Now().UTC(),
 	}
-	_, err := o.Insert(&uG)
-	return &uG, err
+	if nrow, err := o.InsertOrUpdate(&uG); nrow > 0 {
+		return &uG, err
+	} else {
+		err := o.Raw("SELECT * FROM m2m_user_group WHERE group_id = ? AND user_id = ?", g.Id, u.Id).QueryRow(&uG)
+		return &uG, err
+	}
 }

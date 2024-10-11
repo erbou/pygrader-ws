@@ -51,7 +51,7 @@ func SetServerHeader(ctx *context.Context) {
 
 		ctx.Request.Header.Set("X-Client-Cert-CN", clientCN)
 
-		logs.Debug("Client CN=%v", clientCN)
+		//logs.Debug("Client CN=%v", clientCN)
 	}
 }
 
@@ -75,6 +75,11 @@ func init() {
 		beego.NSNamespace("/question",
 			beego.NSInclude(
 				&controllers.QuestionController{},
+			),
+		),
+		beego.NSNamespace("/uploader",
+			beego.NSInclude(
+				&controllers.FileController{},
 			),
 		),
 	)

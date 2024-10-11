@@ -1,6 +1,7 @@
 package models
 
 import (
+	"context"
 	"encoding/base64"
 	"pygrader-webserver/uti"
 	"strings"
@@ -17,51 +18,98 @@ type User struct {
 	Id       int64
 	Username string    `orm:"unique" hash:"n"`
 	Email    string    `orm:"unique" hash:"e"`
-	Key      string    `orm:"type(text)" hash:"k"`
-	CName    string    `orm:"size(32);unique"`
-	CEmail   string    `orm:"size(64);unique"`
-	Kid      string    `orm:"size(40);unique"`
+	Key      string    `orm:"size(4096)" hash:"k"`
+	CName    string    `orm:"size(32);unique;index"`
+	CEmail   string    `orm:"size(64);unique;index"`
+	Kid      string    `orm:"size(40);unique;index"`
+	Scope     *string  `orm:"null" hash:"s"`
 	Groups   []*Group  `orm:"rel(m2m);rel_through(pygrader-webserver/models.UserGroup)"`
 	Created  time.Time `orm:"auto_now_add;type(datetime)"`
 	Updated  time.Time `orm:"auto_now;type(datetime)"`
 }
 
-func (uu *User) Validate() error {
-	if uu == nil {
+type UserPreview struct {
+	Id       int64
+	Username string
+	Email    string
+	Kid      string
+}
+
+type UserView struct {
+	Id       int64
+	Username string
+	Email    string
+	Key      string
+	Kid      string
+	Scope    *string
+	Created  time.Time
+	Updated  time.Time
+}
+
+func (obj *User) Preview() *UserPreview {
+	if obj == nil {
+		return nil
+	}
+	return &UserPreview{
+		Id: obj.Id,
+		Username: obj.Username,
+		Email: obj.Email,
+		Kid: obj.Kid,
+	}	
+}
+
+func (obj *User) View() *UserView {
+	if obj == nil {
+		return nil
+	}
+	return &UserView{
+		Id: obj.Id,
+		Username: obj.Username,
+		Email: obj.Email,
+		Key: obj.Key,
+		Kid: obj.Kid,
+		Scope: obj.Scope,
+		Created: obj.Created,
+		Updated: obj.Updated,
+	}
+}
+
+func (obj *User) Validate() error {
+	if obj == nil {
 		return uti.Errorf(ERR_INVALID_INPUT, "Invalid input")
-	} else if uu.Username = strings.Trim(uu.Username, " \t\n"); uu.Username == "" {
-		return uti.Errorf(ERR_INVALID_INPUT, "Invalid input 'Username'")
-	} else if cname, err := uti.CanonizeName(uu.Username); err != nil {
+	} else if obj.Username = strings.Trim(obj.Username, " \t\n"); obj.Username == "" {
+		return uti.Errorf(ERR_INVALID_INPUT, "Invalid input '{%}'", obj.Username)
+	} else if cname, err := uti.CanonizeName(obj.Username); err != nil {
 		return err
 	} else {
-		uu.CName = cname
+		obj.CName = cname
 	}
 
-	if email, err := uti.CanonizeEmail(uu.Email); err != nil {
+	if email, err := uti.CanonizeEmail(obj.Email); err != nil {
 		return err
 	} else {
-		uu.CEmail = email
+		obj.CEmail = email
 	}
 
-	if kid, key, err := uti.CryptoGetKeyFingerprint(uu.Key, uti.KeyAll, 40); err != nil {
+	if kid, key, err := uti.CryptoGetKeyFingerprint(obj.Key, uti.KeyAny, 40); err != nil {
 		return err
 	} else {
-		uu.Kid = kid
-		uu.Key = base64.StdEncoding.EncodeToString(key)
+		obj.Kid = kid
+		obj.Key = base64.StdEncoding.EncodeToString(key)
 	}
 	return nil
 }
 
-func AddUser(uu *User) (*User, error) {
+func AddUser(obj *User) (*User, error) {
 	// Compute key fingerprint
-	if err := uu.Validate(); err != nil {
+	if err := obj.Validate(); err != nil {
 		return nil, err
 	}
 	o := orm.NewOrm()
-	if _, err := o.Insert(uu); err != nil {
+	if _, err := o.Insert(obj); err != nil {
 		return nil, err
 	} else {
-		return uu, err
+		return obj, err
 	}
 }
 
@@ -75,42 +123,56 @@ func GetUser(oid int64) (*User, error) {
 	}
 }
 
-func GetUsers(email *string, username *string, kid *string) (*[]*User, error) {
+func GetUsers(email *string, username *string, kid *string, page int, pageSize int) (*[]*UserPreview, error) {
 	var users []*User
-	o := orm.NewOrm()
-	qs := o.QueryTable("user")
 
 	cond := orm.NewCondition()
 	if email != nil {
-		cond = cond.And(`email`, *email)
+		if _email, err := uti.CanonizeEmail(*email); err != nil {
+			return nil, err
+		} else {
+			cond = cond.And(`CEmail`, _email)
+		}
 	}
 	if username != nil {
-		cond = cond.And(`CName`, *username)
+		if _username, err := uti.CanonizeName(*username); err != nil {
+			return nil, err
+		} else {
+			cond = cond.And(`CName`, _username)
+		}
 	}
 	if kid != nil {
 		cond = cond.And(`kid`, *kid)
 	}
 
-	if _, err := qs.SetCond(cond).All(&users); err != nil {
+	o := orm.NewOrm()
+	qs := o.QueryTable("user")
+
+	if _, err := qs.Limit(pageSize, (page-1)*pageSize).SetCond(cond).All(&users, "Id", "Username", "Email", "Kid"); err != nil {
 		return nil, err
 	}
 
-	return &users, nil
+	list := make([]*UserPreview, 0, len(users))
+	for _, u := range users {
+		list = append(list, u.Preview())
+	}
+
+	return &list, nil
 }
 
-func UpdateUser(oid int64, uu *User) (*User, error) {
+func UpdateUser(oid int64, obj *User) (*User, error) {
 	u := User{Id: oid}
 	o := orm.NewOrm()
 	// race condition?
 	if err := o.Read(&u); err == nil {
-		if uu.Key != "" {
-			u.Key = uu.Key
+		if obj.Key != "" {
+			u.Key = obj.Key
 		}
-		if uu.Username != "" {
-			u.Username = uu.Username
+		if obj.Username != "" {
+			u.Username = obj.Username
 		}
-		if uu.Email != "" {
-			u.Email = uu.Email
+		if obj.Email != "" {
+			u.Email = obj.Email
 		}
 		if err := u.Validate(); err != nil {
 			return nil, err
@@ -126,6 +188,10 @@ func UpdateUser(oid int64, uu *User) (*User, error) {
 
 func DeleteUser(oid int64) (int64, error) {
 	o := orm.NewOrm()
+        
+	// Remove keys from cache otherwise it will return the wrong user ID
+	// if user is deleted and recreated with the same kid before key expires
+	GlCache.ClearAll(context.Background())
 	return o.Delete(&User{Id: oid})
 }
 
