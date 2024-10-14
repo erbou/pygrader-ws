@@ -1,12 +1,11 @@
 package models
 
 import (
-	//"errors"
-	"pygrader-webserver/uti"
 	"strings"
 	"time"
 
 	orm "github.com/beego/beego/v2/client/orm"
+	"pygrader-webserver/uti"
 )
 
 func init() {
@@ -15,10 +14,10 @@ func init() {
 
 type Question struct {
 	Id       int64
-	Name     string     `orm:"size(32"             hash:"n"`
+	Name     string     `orm:"size(32" hash:"n"`
 	Before   *time.Time `orm:"type(datetime);null" hash:"b"`
 	Reveal   *time.Time `orm:"type(datetime);null" hash:"r"`
-	Grader   string     `orm:"size(32)"            hash:"g"`
+	Grader   string     `orm:"size(32)" hash:"g"`
 	MaxScore int        `hash:"h"`
 	MinScore int        `hash:"m"`
 	MaxTry   int        `hash:"t"`
@@ -29,9 +28,9 @@ type Question struct {
 }
 
 type QuestionPreview struct {
-	Id       int64
-	Name     string
-	Before   *time.Time
+	Id     int64
+	Name   string
+	Before *time.Time
 }
 
 type QuestionView struct {
@@ -56,33 +55,35 @@ func (obj *Question) TableUnique() [][]string {
 
 func (obj *Question) Validate() error {
 	if obj == nil {
-		return uti.Errorf(ERR_INVALID_INPUT, "Invalid input")
+		return uti.Errorf(ErrInvalidInput, "Invalid input")
 	} else if obj.Name = strings.Trim(obj.Name, " \t\n"); obj.Name == "" {
-		return uti.Errorf(ERR_INVALID_INPUT, "Invalid input")
+		return uti.Errorf(ErrInvalidInput, "Invalid input")
 	} else if obj.MinScore < 0 || obj.MaxScore <= obj.MinScore {
-		return uti.Errorf(ERR_INVALID_INPUT, "Invalid min/max score (%v, %v)", obj.MinScore, obj.MaxScore)
+		return uti.Errorf(ErrInvalidInput, "Invalid min/max score (%v, %v)", obj.MinScore, obj.MaxScore)
 	} else if obj.MaxTry < 0 {
-		return uti.Errorf(ERR_INVALID_INPUT, "Invalid max attempts (%v)", obj.MaxTry)
+		return uti.Errorf(ErrInvalidInput, "Invalid max attempts (%v)", obj.MaxTry)
 	} else if obj.Reveal == nil || obj.Before == nil || obj.Reveal.Before(*obj.Before) || time.Now().After(*obj.Before) {
-		return uti.Errorf(ERR_INVALID_INPUT, "Invalid before and reveal date (%v, %v)", obj.Before, obj.Reveal)
+		return uti.Errorf(ErrInvalidInput, "Invalid before and reveal date (%v, %v)", obj.Before, obj.Reveal)
 	} else if obj.Module == nil || obj.Before.After(*obj.Module.Before) || obj.Reveal.After(*obj.Module.Reveal) {
-		return uti.Errorf(ERR_INVALID_INPUT, "Invalid before and reveal are past module date")
+		return uti.Errorf(ErrInvalidInput, "Invalid before and reveal are past module date")
 	} else if cname, err := uti.CanonizeName(obj.Name); err != nil {
 		return err
 	} else {
 		obj.CName = cname
 	}
+
 	return nil
 }
 
 func (obj *Question) Preview() *QuestionPreview {
-	return &QuestionPreview{ Id: obj.Id, Name: obj.Name, Before: obj.Before }
+	return &QuestionPreview{Id: obj.Id, Name: obj.Name, Before: obj.Before}
 }
 
 func (obj *Question) View() *QuestionView {
 	if obj == nil {
 		return nil
 	}
+
 	return &QuestionView{
 		Id:       obj.Id,
 		Name:     obj.Name,
@@ -114,10 +115,10 @@ func AddQuestion(oid int64, obj *Question) (*Question, error) {
 	}
 }
 
-
 func GetQuestion(oid int64) (*Question, error) {
 	obj := Question{Id: oid}
 	o := orm.NewOrm()
+
 	if err := o.Read(&obj); err == nil {
 		return &obj, nil
 	} else {
@@ -141,6 +142,7 @@ func GetAllQuestions() (*[]*Question, error) {
 func UpdateQuestion(oid int64, obj *Question) (*Question, error) {
 	o := orm.NewOrm()
 	dbObj := Question{Id: oid}
+
 	if err := o.Read(&dbObj); err != nil {
 		return nil, err
 	}
@@ -148,21 +150,27 @@ func UpdateQuestion(oid int64, obj *Question) (*Question, error) {
 	if obj.Name != "" {
 		dbObj.Name = obj.Name
 	}
+
 	if obj.Grader != "" {
 		dbObj.Grader = obj.Grader
 	}
+
 	if obj.MaxScore > 0 {
 		dbObj.MaxScore = obj.MaxScore
 	}
+
 	if obj.MinScore >= 0 {
 		dbObj.MinScore = obj.MinScore
 	}
+
 	if obj.MaxTry >= 0 {
 		dbObj.MaxTry = obj.MaxTry
 	}
+
 	if obj.Before != nil {
 		dbObj.Before = obj.Before
 	}
+
 	if obj.Reveal != nil {
 		dbObj.Reveal = obj.Reveal
 	}
@@ -178,5 +186,6 @@ func UpdateQuestion(oid int64, obj *Question) (*Question, error) {
 
 func DeleteQuestion(oid int64) (int64, error) {
 	o := orm.NewOrm()
+
 	return o.Delete(&Question{Id: oid})
 }

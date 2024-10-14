@@ -1,12 +1,13 @@
 package controllers
 
 import (
-	"pygrader-webserver/models"
-	"pygrader-webserver/uti"
+	"errors"
 	"strconv"
 
 	"github.com/beego/beego/v2/core/logs"
 	beego "github.com/beego/beego/v2/server/web"
+	"pygrader-webserver/models"
+	"pygrader-webserver/uti"
 )
 
 // Operations about Users
@@ -32,13 +33,14 @@ func (c *UserController) Post() {
 		//       Current approach is to allow it if the new user's email u.Email and the key fingerprint u.Kid matches the
 		//       certificate's CN and signature's key s.Keyid. This requires doing a user Verify pre-validation to obtain
 		//       the Kid.
-		if _err, ok := err.(uti.Error); !ok {
+		var _err *uti.Error
+		if !errors.As(err, &_err) {
 			CustomAbort(c, err, 500, "System error")
-		} else if _err.Code == models.ERR_KID_UNKOWN &&
+		} else if _err.Code == models.ErrKidUnknown &&
 			u.Validate() == nil &&
 			s.Keyid == u.Kid &&
-			c.Ctx.Request.Header.Get("X-Client-Cert-CN") == u.Email {
-			logs.Info("Create user %v %v %v", c.Ctx.Request.Header.Get("X-Client-Cert-CN"), u.CEmail, u.Kid)
+			c.Ctx.Request.Header.Get("X-Client-Cert-Cn") == u.Email {
+			logs.Info("Create user %v %v %v", c.Ctx.Request.Header.Get("X-Client-Cert-Cn"), u.CEmail, u.Kid)
 		} else {
 			CustomAbort(c, err, 403, "Forbidden")
 		}
@@ -49,7 +51,8 @@ func (c *UserController) Post() {
 	} else {
 		c.SetData(u.View())
 	}
-	c.ServeJSON()
+
+	_ = c.ServeJSON()
 }
 
 // @Title GetUsers
@@ -62,23 +65,27 @@ func (c *UserController) Post() {
 // @Success 200 {object} []models.UserPreview
 // @Failure 400 bad request
 // @Failure 403 forbidden
-// @Failure 500 internal error
+// @Failure 500 system error
 // @router / [get]
 func (c *UserController) GetUsers(email *string, username *string, kid *string, page *int, pageSize *int) {
 	_page := 1
 	_pageSize := 100
+
 	if pageSize != nil && *pageSize < 100 {
 		_pageSize = *pageSize
 	}
+
 	if page != nil && *page > 0 {
 		_page = *page
 	}
+
 	if list, err := models.GetUsers(email, username, kid, _page, _pageSize); err != nil {
-		CustomAbort(c, err, 500, "Error")
+		CustomAbort(c, err, 500, "System error")
 	} else {
 		c.SetData(list)
 	}
-	c.ServeJSON()
+
+	_ = c.ServeJSON()
 }
 
 // @Title Get User
@@ -94,7 +101,8 @@ func (c *UserController) GetUser(uid int64) {
 	} else {
 		CustomAbort(c, err, 404, "Not Found")
 	}
-	c.ServeJSON()
+
+	_ = c.ServeJSON()
 }
 
 // @Title Update User
@@ -115,7 +123,8 @@ func (c *UserController) PutUser(uid int64) {
 	} else {
 		c.SetData(u.View())
 	}
-	c.ServeJSON()
+
+	_ = c.ServeJSON()
 }
 
 // @Title Delete
@@ -131,7 +140,8 @@ func (c *UserController) DeleteUser(uid int64) {
 	} else {
 		c.SetData(map[string]string{`nrow`: strconv.FormatInt(n, 10)})
 	}
-	c.ServeJSON()
+
+	_ = c.ServeJSON()
 }
 
 // @Title List Groups
@@ -147,5 +157,6 @@ func (c *UserController) GetGroups(uid int64) {
 	} else {
 		c.SetData(list)
 	}
-	c.ServeJSON()
+
+	_ = c.ServeJSON()
 }

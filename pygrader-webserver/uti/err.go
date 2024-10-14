@@ -12,17 +12,17 @@ type Error struct {
 }
 
 const (
-	ERR_SYSTEM_ERROR ErrorCode = 1 + iota
+	ErrSystemError ErrorCode = 1 + iota
 )
 
-func (e Error) Error() string {
+func (e *Error) Error() string {
 	return fmt.Sprintf("error[%v]: %v", e.Code, e.error.Error())
 }
 
-func (e Error) Unwrap() error {
+func (e *Error) Unwrap() error {
 	return e.error
 }
 
-func Errorf(code ErrorCode, format string, args ...interface{}) Error {
-	return Error{Code: code, error: fmt.Errorf(format, args...)}
+func Errorf(code ErrorCode, format string, args ...interface{}) *Error {
+	return &Error{Code: code, error: fmt.Errorf(format, args...)}
 }

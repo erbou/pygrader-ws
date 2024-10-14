@@ -9,16 +9,14 @@ package routers
 
 import (
 	"crypto/x509"
-	"pygrader-webserver/controllers"
 
 	"github.com/beego/beego/v2/core/logs"
 	beego "github.com/beego/beego/v2/server/web"
 	"github.com/beego/beego/v2/server/web/context"
+	"pygrader-webserver/controllers"
 )
 
-var (
-	proxyCertified = false
-)
+var proxyCertified = false
 
 // Is certificate valid for the intended purpose?
 func isValidCert(cert *x509.Certificate, keyUsages ...x509.ExtKeyUsage) bool {
@@ -29,17 +27,19 @@ func isValidCert(cert *x509.Certificate, keyUsages ...x509.ExtKeyUsage) bool {
 			}
 		}
 	}
+
 	logs.Warning("No key Usage: %v", cert)
+
 	return false
 }
 
 func SetServerHeader(ctx *context.Context) {
 	ctx.Output.Header("Server", "PyGrader v0.1")
 
-	// Delete the X-Client-Cert-CN unless it is added by a trusted a proxy
+	// Delete the X-Client-Cert-Cn unless it is added by a trusted a proxy
 	// This so that it cannot be inserted by the client.
-	if ! proxyCertified {
-		ctx.Request.Header.Del("X-Client-Cert-CN")
+	if !proxyCertified {
+		ctx.Request.Header.Del("X-Client-Cert-Cn")
 	}
 
 	if ctx.Request.TLS != nil && len(ctx.Request.TLS.PeerCertificates) > 0 {
@@ -49,15 +49,15 @@ func SetServerHeader(ctx *context.Context) {
 		// As a precaution, verify that this is the client cert
 		if !isValidCert(clientCert, x509.ExtKeyUsageClientAuth) {
 			ctx.Abort(401, "Invalid client certificate")
+
 			return
 		}
 
-		//clientDN := clientCert.Subject.String()
+		// clientDN := clientCert.Subject.String()
 		clientCN := clientCert.Subject.CommonName
 
-		ctx.Request.Header.Set("X-Client-Cert-CN", clientCN)
-
-		//logs.Debug("Client CN=%v", clientCN)
+		// logs.Debug("Client CN=%v", clientCN)
+		ctx.Request.Header.Set("X-Client-Cert-Cn", clientCN)
 	}
 }
 
@@ -89,6 +89,7 @@ func init() {
 			),
 		),
 	)
+
 	beego.InsertFilter("/*", beego.BeforeExec, SetServerHeader)
 	beego.AddNamespace(ns)
 	proxyCertified = beego.AppConfig.DefaultBool("proxyCertified", false)

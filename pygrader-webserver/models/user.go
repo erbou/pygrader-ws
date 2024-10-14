@@ -3,11 +3,11 @@ package models
 import (
 	"context"
 	"encoding/base64"
-	"pygrader-webserver/uti"
 	"strings"
 	"time"
 
 	"github.com/beego/beego/v2/client/orm"
+	"pygrader-webserver/uti"
 )
 
 func init() {
@@ -22,7 +22,7 @@ type User struct {
 	CName    string    `orm:"size(32);unique;index"`
 	CEmail   string    `orm:"size(64);unique;index"`
 	Kid      string    `orm:"size(40);unique;index"`
-	Scope     *string  `orm:"null" hash:"s"`
+	Scope    *string   `orm:"null" hash:"s"`
 	Groups   []*Group  `orm:"rel(m2m);rel_through(pygrader-webserver/models.UserGroup)"`
 	Created  time.Time `orm:"auto_now_add;type(datetime)"`
 	Updated  time.Time `orm:"auto_now;type(datetime)"`
@@ -50,35 +50,37 @@ func (obj *User) Preview() *UserPreview {
 	if obj == nil {
 		return nil
 	}
+
 	return &UserPreview{
-		Id: obj.Id,
+		Id:       obj.Id,
 		Username: obj.Username,
-		Email: obj.Email,
-		Kid: obj.Kid,
-	}	
+		Email:    obj.Email,
+		Kid:      obj.Kid,
+	}
 }
 
 func (obj *User) View() *UserView {
 	if obj == nil {
 		return nil
 	}
+
 	return &UserView{
-		Id: obj.Id,
+		Id:       obj.Id,
 		Username: obj.Username,
-		Email: obj.Email,
-		Key: obj.Key,
-		Kid: obj.Kid,
-		Scope: obj.Scope,
-		Created: obj.Created,
-		Updated: obj.Updated,
+		Email:    obj.Email,
+		Key:      obj.Key,
+		Kid:      obj.Kid,
+		Scope:    obj.Scope,
+		Created:  obj.Created,
+		Updated:  obj.Updated,
 	}
 }
 
 func (obj *User) Validate() error {
 	if obj == nil {
-		return uti.Errorf(ERR_INVALID_INPUT, "Invalid input")
+		return uti.Errorf(ErrInvalidInput, "Invalid input")
 	} else if obj.Username = strings.Trim(obj.Username, " \t\n"); obj.Username == "" {
-		return uti.Errorf(ERR_INVALID_INPUT, "Invalid input '{%}'", obj.Username)
+		return uti.Errorf(ErrInvalidInput, "Invalid input '%v'", obj.Username)
 	} else if cname, err := uti.CanonizeName(obj.Username); err != nil {
 		return err
 	} else {
@@ -97,6 +99,7 @@ func (obj *User) Validate() error {
 		obj.Kid = kid
 		obj.Key = base64.StdEncoding.EncodeToString(key)
 	}
+
 	return nil
 }
 
@@ -105,6 +108,7 @@ func AddUser(obj *User) (*User, error) {
 	if err := obj.Validate(); err != nil {
 		return nil, err
 	}
+
 	o := orm.NewOrm()
 	if _, err := o.Insert(obj); err != nil {
 		return nil, err
@@ -116,6 +120,7 @@ func AddUser(obj *User) (*User, error) {
 func GetUser(oid int64) (*User, error) {
 	u := User{Id: oid}
 	o := orm.NewOrm()
+
 	if err := o.Read(&u); err == nil {
 		return &u, nil
 	} else {
@@ -127,6 +132,7 @@ func GetUsers(email *string, username *string, kid *string, page int, pageSize i
 	var users []*User
 
 	cond := orm.NewCondition()
+
 	if email != nil {
 		if _email, err := uti.CanonizeEmail(*email); err != nil {
 			return nil, err
@@ -134,6 +140,7 @@ func GetUsers(email *string, username *string, kid *string, page int, pageSize i
 			cond = cond.And(`CEmail`, _email)
 		}
 	}
+
 	if username != nil {
 		if _username, err := uti.CanonizeName(*username); err != nil {
 			return nil, err
@@ -141,6 +148,7 @@ func GetUsers(email *string, username *string, kid *string, page int, pageSize i
 			cond = cond.And(`CName`, _username)
 		}
 	}
+
 	if kid != nil {
 		cond = cond.And(`kid`, *kid)
 	}
@@ -168,18 +176,23 @@ func UpdateUser(oid int64, obj *User) (*User, error) {
 		if obj.Key != "" {
 			u.Key = obj.Key
 		}
+
 		if obj.Username != "" {
 			u.Username = obj.Username
 		}
+
 		if obj.Email != "" {
 			u.Email = obj.Email
 		}
+
 		if err := u.Validate(); err != nil {
 			return nil, err
 		}
+
 		if _, err := o.Update(&u); err != nil {
 			return nil, err
 		}
+
 		return &u, nil
 	} else {
 		return nil, err
@@ -188,22 +201,25 @@ func UpdateUser(oid int64, obj *User) (*User, error) {
 
 func DeleteUser(oid int64) (int64, error) {
 	o := orm.NewOrm()
-        
+
 	// Remove keys from cache otherwise it will return the wrong user ID
 	// if user is deleted and recreated with the same kid before key expires
-	GlCache.ClearAll(context.Background())
+	_ = GlCache.ClearAll(context.Background())
+
 	return o.Delete(&User{Id: oid})
 }
 
 func UserGetGroups(oid int64) (*[]*Group, error) {
 	u := User{Id: oid}
 	o := orm.NewOrm()
+
 	if err := o.Read(&u); err != nil {
 		return nil, err
 	}
+
 	if _, err := o.LoadRelated(&u, "Groups"); err != nil {
 		return nil, err
 	}
-	return &u.Groups, nil
 
+	return &u.Groups, nil
 }

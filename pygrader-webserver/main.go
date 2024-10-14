@@ -1,8 +1,6 @@
 package main
 
 import (
-	"fmt"
-	_ "pygrader-webserver/routers"
 	"regexp"
 	"time"
 
@@ -11,6 +9,13 @@ import (
 	beego "github.com/beego/beego/v2/server/web"
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/mattn/go-sqlite3"
+	_ "pygrader-webserver/routers"
+)
+
+const (
+	maxIdleConnections = 30
+	maxOpenConnections = 30
+	asyncLogsTime      = 1e3
 )
 
 func init() {
@@ -32,39 +37,44 @@ func main() {
 		force = true
 		orm.Debug = true
 		logs.EnableFuncCallDepth(true)
-		logs.SetLogger(logs.AdapterConsole, `{"level":1}`)
+		_ = logs.SetLogger(logs.AdapterConsole, `{"level":1}`)
 		beego.BConfig.WebConfig.DirectoryIndex = true
 		beego.BConfig.WebConfig.StaticDir["/swagger"] = "swagger"
 	} else {
 		orm.Debug = false
+
 		logs.Reset()
-		logs.SetLogger(logs.AdapterFile, `{"level":4, "filename": "pygrader.log", "perm": "0700" }`)
-		logs.Async(1e3)
+		_ = logs.SetLogger(logs.AdapterFile, `{"level":4, "filename": "pygrader.log", "perm": "0700" }`)
+		logs.Async(asyncLogsTime)
 	}
 
 	logs.Info("Mode %v", beego.BConfig.RunMode)
 
 	orm.DefaultTimeLoc = time.UTC
 
-	orm.RegisterDriver("mysql", orm.DRMySQL)
-	orm.RegisterDataBase("default", "mysql", sqlConn)
+	if err := orm.RegisterDriver("mysql", orm.DRMySQL); err != nil {
+		logs.Error(err)
+	}
 
-	//orm.RegisterDataBase("default", "sqlite3", "sqlite.db")
-	//orm.RegisterDriver("sqlite3", orm.DRSqlite)
+	if err := orm.RegisterDataBase("default", "mysql", sqlConn); err != nil {
+		logs.Error(err)
+	}
 
-	orm.SetMaxIdleConns("default", 30)
-	orm.SetMaxOpenConns("default", 30)
+	// orm.RegisterDataBase("default", "sqlite3", "sqlite.db")
+	// orm.RegisterDriver("sqlite3", orm.DRSqlite)
+
+	orm.SetMaxIdleConns("default", maxIdleConnections)
+	orm.SetMaxOpenConns("default", maxOpenConnections)
 
 	orm.RunCommand()
 
-	err = orm.RunSyncdb("default", force, verbose)
-	if err != nil {
-		fmt.Println(err)
+	if err := orm.RunSyncdb("default", force, verbose); err != nil {
+		logs.Error(err)
 	}
 
-	//DB- specific (mysql), modify as needed
-	//o := orm.NewOrm()
-	//_, err = o.Raw("alter table user_groups add constraint cst_unique unique(user_id,group_id)").Exec()
+	// DB- specific (mysql), modify as needed
+	// o := orm.NewOrm()
+	// _, err = o.Raw("alter table user_groups add constraint cst_unique unique(user_id,group_id)").Exec()
 
 	beego.Run()
 }

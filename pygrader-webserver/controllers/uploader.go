@@ -1,8 +1,8 @@
 package controllers
 
 import (
-	beego "github.com/beego/beego/v2/server/web"
 	"github.com/beego/beego/v2/core/logs"
+	beego "github.com/beego/beego/v2/server/web"
 	"github.com/google/uuid"
 )
 
@@ -26,11 +26,19 @@ func (c *FileController) GetController() *beego.Controller {
 func (c *FileController) Post() {
 	f, h, err := c.GetFile("upload")
 	uuid := uuid.New().String()
+
 	if err != nil {
 		logs.Error("Getfile err ", err)
 		CustomAbort(c, err, 400, "Bad Request")
 	}
-	logs.Debug("Upload ", h)
+
 	defer f.Close()
-	c.SaveToFile("upload", "static/upload/" + uuid) 
+
+	logs.Debug("Upload ", h)
+
+	if err := c.SaveToFile("upload", "static/upload/"+uuid); err != nil {
+		CustomAbort(c, err, 500, "System error")
+	}
+
+	_ = c.ServeJSON()
 }

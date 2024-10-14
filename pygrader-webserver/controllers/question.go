@@ -1,10 +1,10 @@
 package controllers
 
 import (
-	"pygrader-webserver/models"
 	"strconv"
 
 	beego "github.com/beego/beego/v2/server/web"
+	"pygrader-webserver/models"
 )
 
 type QuestionController struct {
@@ -30,7 +30,8 @@ func (c *QuestionController) GetQuestion(qid int64) {
 	} else {
 		c.SetData(obj.View())
 	}
-	c.ServeJSON()
+
+	_ = c.ServeJSON()
 }
 
 // @Title Update
@@ -49,7 +50,8 @@ func (c *QuestionController) PutQuestion(qid int64) {
 	} else {
 		c.SetData(uu.View())
 	}
-	c.ServeJSON()
+
+	_ = c.ServeJSON()
 }
 
 // @Title Delete
@@ -64,7 +66,8 @@ func (c *QuestionController) DeleteQuestion(qid int64) {
 	} else {
 		c.SetData(map[string]string{`nrow`: strconv.FormatInt(n, 10)})
 	}
-	c.ServeJSON()
+
+	_ = c.ServeJSON()
 }
 
 // @Title Submit Answer
@@ -90,5 +93,6 @@ func (c *QuestionController) PostAnswer(qid int64) {
 			c.SetData(obj.View())
 		}
 	}
-	c.ServeJSON()
+
+	_ = c.ServeJSON()
 }

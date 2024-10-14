@@ -1,13 +1,13 @@
 package controllers
 
 import (
-	"pygrader-webserver/models"
 	"strconv"
 
+	"github.com/beego/beego/v2/core/logs"
 	beego "github.com/beego/beego/v2/server/web"
+	"pygrader-webserver/models"
 )
 
-// Operations about groups
 type GroupController struct {
 	beego.Controller
 }
@@ -29,12 +29,14 @@ func (c *GroupController) Post() {
 		CustomAbort(c, err, 400, "Failed")
 	} else {
 		if _, err := models.GroupAddUser(g, s.Issuer, "owner"); err != nil {
-
+			logs.Error("Could not add creator %v to group %v", s.Issuer, g)
 		}
+
 		obj, _ := models.GetGroup(obj.Id)
 		c.SetData(obj.View())
 	}
-	c.ServeJSON()
+
+	_ = c.ServeJSON()
 }
 
 // @Title Get
@@ -50,7 +52,8 @@ func (c *GroupController) GetGroup(gid int64) {
 	} else {
 		c.SetData(group.View())
 	}
-	c.ServeJSON()
+
+	_ = c.ServeJSON()
 }
 
 // @Title GetGroups
@@ -64,18 +67,22 @@ func (c *GroupController) GetGroup(gid int64) {
 func (c *GroupController) GetGroups(name *string, page *int, pageSize *int) {
 	_page := 1
 	_pageSize := 100
+
 	if pageSize != nil && *pageSize < 100 {
 		_pageSize = *pageSize
 	}
+
 	if page != nil && *page > 0 {
 		_page = *page
 	}
+
 	if list, err := models.GetGroups(name, _page, _pageSize); err != nil {
 		CustomAbort(c, err, 500, "[]")
 	} else {
 		c.SetData(list)
 	}
-	c.ServeJSON()
+
+	_ = c.ServeJSON()
 }
 
 // @Title Update
@@ -94,7 +101,8 @@ func (c *GroupController) PutGroup(gid int64) {
 	} else {
 		c.SetData(ug.View())
 	}
-	c.ServeJSON()
+
+	_ = c.ServeJSON()
 }
 
 // @Title Delete
@@ -110,7 +118,8 @@ func (c *GroupController) DeleteGroup(gid int64) {
 	} else {
 		c.SetData(map[string]string{`nrow`: strconv.FormatInt(n, 10)})
 	}
-	c.ServeJSON()
+
+	_ = c.ServeJSON()
 }
 
 // @Title Add User
@@ -136,7 +145,8 @@ func (c *GroupController) AddUser(gid int64, uid int64, secret *string) {
 	} else {
 		c.SetData(map[string]string{"oid": strconv.FormatInt(rid, 10)})
 	}
-	c.ServeJSON()
+
+	_ = c.ServeJSON()
 }
 
 // @Title List User
@@ -153,7 +163,8 @@ func (c *GroupController) GetUsers(gid int64) {
 	} else {
 		c.SetData(list)
 	}
-	c.ServeJSON()
+
+	_ = c.ServeJSON()
 }
 
 // @Title Remove User
@@ -172,7 +183,8 @@ func (c *GroupController) RemoveUser(gid int64, uid int64) {
 	} else {
 		c.SetData("")
 	}
-	c.ServeJSON()
+
+	_ = c.ServeJSON()
 }
 
 // @Title Add Subgroup
@@ -198,7 +210,8 @@ func (c *GroupController) AddSubgroup(gid int64, sgid int64, secret *string) {
 	} else {
 		c.SetData(map[string]string{"oid": strconv.FormatInt(rid, 10)})
 	}
-	c.ServeJSON()
+
+	_ = c.ServeJSON()
 }
 
 // @Title List Subgroup
@@ -215,7 +228,8 @@ func (c *GroupController) GetSubgroup(gid int64) {
 	} else {
 		c.SetData(list)
 	}
-	c.ServeJSON()
+
+	_ = c.ServeJSON()
 }
 
 // @Title List Supgroup
@@ -232,14 +246,15 @@ func (c *GroupController) GetSupgroup(gid int64) {
 	} else {
 		c.SetData(list)
 	}
-	c.ServeJSON()
+
+	_ = c.ServeJSON()
 }
 
 // @Title Remove Subgroup
 // @Description add sub group to the group
 // @Param	gid		path 	string	true		"The group id you want to update"
 // @Param	sgid		path 	string	true		"The group id you want to add"
-// @Success 200 {int64} number of deleted rows 
+// @Success 200 {int64} number of deleted rows
 // @Failure 400 invalid input
 // @Failure 404 gid or sgid does not exist
 // @router /:gid:int/group/:sgid:int [delete]
@@ -250,6 +265,6 @@ func (c *GroupController) RemoveSubgroup(gid int64, sgid int64) {
 	} else {
 		c.SetData(map[string]string{`nrow`: strconv.FormatInt(n, 10)})
 	}
-	c.ServeJSON()
-}
 
+	_ = c.ServeJSON()
+}

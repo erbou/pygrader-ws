@@ -1,10 +1,10 @@
 package controllers
 
 import (
-	"pygrader-webserver/models"
 	"strconv"
 
 	beego "github.com/beego/beego/v2/server/web"
+	"pygrader-webserver/models"
 )
 
 // Operations about Modules
@@ -32,7 +32,8 @@ func (c *ModuleController) Post() {
 	} else {
 		c.SetData(uu.View())
 	}
-	c.ServeJSON()
+
+	_ = c.ServeJSON()
 }
 
 // @Title Get
@@ -45,19 +46,22 @@ func (c *ModuleController) Post() {
 func (c *ModuleController) GetModules(name *string, page *int, pageSize *int) {
 	_page := 1
 	_pageSize := 100
+
 	if pageSize != nil && *pageSize < 100 {
 		_pageSize = *pageSize
 	}
+
 	if page != nil && *page > 0 {
 		_page = *page
 	}
 
 	if list, err := models.GetModules(name, _page, _pageSize); err != nil {
-		CustomAbort(c, err, 500, "Internal Error")
+		CustomAbort(c, err, 500, "System error")
 	} else {
 		c.SetData(list)
 	}
-	c.ServeJSON()
+
+	_ = c.ServeJSON()
 }
 
 // @Title Get
@@ -72,7 +76,8 @@ func (c *ModuleController) GetModule(mid int64) {
 	} else {
 		c.SetData(obj.View())
 	}
-	c.ServeJSON()
+
+	_ = c.ServeJSON()
 }
 
 // @Title Update
@@ -92,7 +97,8 @@ func (c *ModuleController) PutModule(mid int64) {
 	} else {
 		c.SetData(uu)
 	}
-	c.ServeJSON()
+
+	_ = c.ServeJSON()
 }
 
 // @Title Add Question
@@ -111,7 +117,8 @@ func (c *ModuleController) PostQuestion(mid int64) {
 	} else {
 		c.SetData(mObj.View())
 	}
-	c.ServeJSON()
+
+	_ = c.ServeJSON()
 }
 
 // @Title Delete
@@ -126,7 +133,8 @@ func (c *ModuleController) DeleteModule(mid int64) {
 	} else {
 		c.SetData(map[string]string{`nrow`: strconv.FormatInt(n, 10)})
 	}
-	c.ServeJSON()
+
+	_ = c.ServeJSON()
 }
 
 // @Title List Questions
@@ -141,7 +149,8 @@ func (c *ModuleController) GetAllQuestions(mid int64) {
 	} else {
 		c.SetData(list)
 	}
-	c.ServeJSON()
+
+	_ = c.ServeJSON()
 }
 
 // @Title List Answers
@@ -158,9 +167,11 @@ func (c *ModuleController) GetAllQuestions(mid int64) {
 func (c *ModuleController) GetGroupAnswers(mid int64, question *int64, group *int64, poster *int64, page *int, pageSize *int) {
 	_page := 1
 	_pageSize := 100
+
 	if pageSize != nil && *pageSize < 100 {
 		_pageSize = *pageSize
 	}
+
 	if page != nil && *page > 0 {
 		_page = *page
 	}
@@ -170,5 +181,6 @@ func (c *ModuleController) GetGroupAnswers(mid int64, question *int64, group *in
 	} else {
 		c.SetData(list)
 	}
-	c.ServeJSON()
+
+	_ = c.ServeJSON()
 }

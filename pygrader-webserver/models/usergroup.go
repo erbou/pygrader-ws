@@ -7,10 +7,10 @@ import (
 )
 
 type UserGroup struct {
-	Id      int64     `orm:"pk;auto"`
-	User    *User     `orm:"rel(fk);null;on_delete(set_null)"`
-	Group   *Group    `orm:"rel(fk);null;on_delete(set_null)"`
-	GrpAcl  string
+	Id      int64  `orm:"pk;auto"`
+	User    *User  `orm:"rel(fk);null;on_delete(set_null)"`
+	Group   *Group `orm:"rel(fk);null;on_delete(set_null)"`
+	GrpACL  string
 	Created time.Time `orm:"auto_now_add;type(datetime)"`
 	Updated time.Time `orm:"auto_now;type(datetime)"`
 }
@@ -34,14 +34,16 @@ func AddUserGroup(u *User, g *Group, acl string) (*UserGroup, error) {
 	uG := UserGroup{
 		User:    u,
 		Group:   g,
-		GrpAcl:  acl,
+		GrpACL:  acl,
 		Created: time.Now().UTC(),
 		Updated: time.Now().UTC(),
 	}
+
 	if nrow, err := o.InsertOrUpdate(&uG); nrow > 0 {
 		return &uG, err
 	} else {
 		err := o.Raw("SELECT * FROM m2m_user_group WHERE group_id = ? AND user_id = ?", g.Id, u.Id).QueryRow(&uG)
+
 		return &uG, err
 	}
 }
